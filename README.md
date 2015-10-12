@@ -1,2 +1,2 @@
 # gmusic-client-go
-Golang port of the music client from gmusicapi
+Golang implementation of the google music client, inspired by the awesome gmusicapi
