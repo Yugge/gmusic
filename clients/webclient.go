@@ -178,7 +178,7 @@ func getExpectedSize(url string) int {
 	lowRangeRaw := strings.Split(rangeString, "-")[0]
 	highRange, _ := strconv.Atoi(highRangeRaw)
 	lowRange, _ := strconv.Atoi(lowRangeRaw)
-	return highRange - lowRange
+	return highRange - lowRange + 1
 }
 
 func (w *WebClient) ReportIncorrectMatch() error {
