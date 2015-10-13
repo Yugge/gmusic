@@ -15,6 +15,7 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -161,12 +162,23 @@ func (w *WebClient) GetStreamAudio(id string) (*[]byte, error) {
 	urls, _ := w.GetStreamUrls(id)
 	b := bytes.NewBuffer(make([]byte, 20000000))
 	for i, v := range *urls {
+		size = getExpectedSize(v)
 		w.Logger.Info("Parsing url %v/%v", i+1, len(*urls))
 		browser.Open(v)
-		browser.Download(b)
+		d := bytes.NewBuffer(make([]byte, size))
+		browser.Download(d)
+		b.Write(d.Bytes())
 	}
 	audioData := b.Bytes()
 	return &audioData, nil
+}
+func getExpectedSize(url string) int {
+	rangeString := strings.Split(strings.Split(url, "range=")[1], "&")[0]
+	highRangeRaw := strings.Split(rangeString, "-")[1]
+	lowRangeRaw := strings.Split(rangeString, "-")[0]
+	highRange, _ := strconv.Atoi(highRangeRaw)
+	lowRange, _ := strconv.Atoi(lowRangeRaw)
+	return highRange - lowRange
 }
 
 func (w *WebClient) ReportIncorrectMatch() error {
