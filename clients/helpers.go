@@ -21,3 +21,13 @@ func inCookies(c []*http.Cookie, s []string) bool {
 	}
 	return false
 }
+
+func getFromCookie(c []*http.Cookie, s string) string {
+	for _, v := range c {
+		if v.Name == s {
+			return v.Value
+		}
+	}
+
+	return ""
+}
