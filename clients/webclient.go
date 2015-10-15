@@ -11,7 +11,7 @@ import (
 	"github.com/headzoo/surf"
 	"github.com/headzoo/surf/jar"
 	"github.com/jcelliott/lumber"
-	"github.com/yugge/gmusic-client-go/models"
+	"github.com/yugge/gmusic/models"
 	"html"
 	"net/http"
 	"net/url"
@@ -162,7 +162,7 @@ func (w *WebClient) GetStreamAudio(id string) (*[]byte, error) {
 	urls, _ := w.GetStreamUrls(id)
 	b := bytes.NewBuffer(make([]byte, 20000000))
 	for i, v := range *urls {
-		size = getExpectedSize(v)
+		size := getExpectedSize(v)
 		w.Logger.Info("Parsing url %v/%v", i+1, len(*urls))
 		browser.Open(v)
 		d := bytes.NewBuffer(make([]byte, size))
