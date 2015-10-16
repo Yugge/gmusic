@@ -54,12 +54,30 @@ func NewPlaylist(data []*jason.Value) (p *Playlist) {
 }
 
 func newSong(data []*jason.Value) (s Song) {
-	s.Id, _ = data[0].String()
-	s.Title, _ = data[1].String()
-	s.Cover, _ = data[2].String()
-	s.Artist, _ = data[3].String()
-	s.Album, _ = data[4].String()
-	s.AlbumArtist, _ = data[5].String()
+	s.Id, err := data[0].String()
+	if err != nil {
+		s.Id = ""
+	}
+	s.Title, err = data[1].String()
+	if err != nil {
+		s.Id = ""
+	}
+	s.Cover, err = data[2].String()
+	if err != nil {
+		s.Cover = ""
+	}
+	s.Artist, err = data[3].String()
+	if err != nil {
+		s.Artist = ""
+	}
+	s.Album, err = data[4].String()
+	if err != nil {
+		s.Album = ""
+	}
+	s.AlbumArtist, err = data[5].String()
+	if err != nil {
+		s.AlbumArtist = ""
+	}
 	return
 }
 

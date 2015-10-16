@@ -44,6 +44,7 @@ func NewWebClient() *WebClient {
 
 // Authorize yourself against Googles servers
 func (w *WebClient) Login(email, password string) error {
+	w.Logger.Level(lumber.WARN)
 	w.Logger.Info("Trying to sign in")
 
 	browser := surf.NewBrowser()
@@ -97,7 +98,6 @@ func (w *WebClient) GetSharedPlaylistInfo(id string) (*models.Playlist, error) {
 	cookieJar := jar.NewMemoryCookies()
 	cookieJar.SetCookies(urlen, w.Session.Cookies)
 	browser.SetCookieJar(cookieJar)
-	w.Logger.Info("%v", cookieJar.Cookies(urlen))
 	browser.Post(serviceUrl+"loaduserplaylist?"+params.Encode(), "application/x-www-form-urlencoded;charset=UTF-8", strings.NewReader(fmt.Sprintf(`[[%v,1],["%v"]]`, `""`, id)))
 	payload := html.UnescapeString(browser.Body())
 	json, err := jason.NewObjectFromReader(strings.NewReader(`{"array": ` + payload + `}`))
@@ -120,6 +120,28 @@ func (w *WebClient) GetSongDownloadInfo() error {
 	return NotImplementedError
 }
 
+func (w *WebClient) AddSongToPlaylist(playlistId string, songId string) bool {
+	xt := getFromCookie(w.Session.Cookies, "xt")
+	params := url.Values{}
+	params.Add("u", "0")
+	params.Add("xt", xt)
+	formData := url.Values{}
+	json := fmt.Sprintf(`{"playlistId":"%v", "songRefs":[{"id": "%v","type": 2}], "sessionId": "sgeoq1k4jm85"}`, url.QueryEscape(playlistId), url.QueryEscape(songId))
+	formData.Add("json", json)
+	browser := surf.NewBrowser()
+	urlen, _ := url.Parse("https://play.google.com")
+	cookieJar := jar.NewMemoryCookies()
+	cookieJar.SetCookies(urlen, w.Session.Cookies)
+	browser.SetCookieJar(cookieJar)
+	browser.PostForm(serviceUrl+"addtoplaylist?"+params.Encode(), formData)
+	payload := html.UnescapeString(browser.Body())
+	w.Logger.Level(lumber.INFO)
+	w.Logger.Info("%v", payload)
+	if strings.Contains(payload, `{"success":false}`) {
+		return false
+	}
+	return true
+}
 func (w *WebClient) GetStreamUrls(id string) (*[]string, error) {
 	params := url.Values{}
 	params.Add("u", "0")
