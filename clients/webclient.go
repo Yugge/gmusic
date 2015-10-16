@@ -29,6 +29,7 @@ type Session struct {
 	Cookies []*http.Cookie
 }
 
+var loglevel int
 var InvalidCredentialsError = errors.New("ERROR: Invalid credentials")
 var NotImplementedError = errors.New("ERROR: Feature not implemented")
 
@@ -44,9 +45,8 @@ func NewWebClient() *WebClient {
 
 // Authorize yourself against Googles servers
 func (w *WebClient) Login(email, password string) error {
-	w.Logger.Level(lumber.WARN)
-	w.Logger.Info("Trying to sign in")
-
+	loglevel = w.Logger.GetLevel()
+	w.Logger.Debug("Trying to sign in")
 	browser := surf.NewBrowser()
 	getValues := url.Values{}
 	getValues.Add("service", "sj")
@@ -65,7 +65,7 @@ func (w *WebClient) Login(email, password string) error {
 
 		return InvalidCredentialsError
 	}
-	w.Logger.Info("Successfully Signed in!")
+	w.Logger.Debug("Successfully Signed in!")
 	w.Session.Cookies = browser.SiteCookies()
 	w.Authed = true
 
@@ -87,6 +87,7 @@ func (w *WebClient) GetRegisteredDevices() error {
 }
 
 func (w *WebClient) GetSharedPlaylistInfo(id string) (*models.Playlist, error) {
+	w.Logger.Debug("Getting Shared Playlist Info")
 	xt := getFromCookie(w.Session.Cookies, "xt")
 	params := url.Values{}
 	params.Add("u", "0")
@@ -100,6 +101,7 @@ func (w *WebClient) GetSharedPlaylistInfo(id string) (*models.Playlist, error) {
 	browser.SetCookieJar(cookieJar)
 	browser.Post(serviceUrl+"loaduserplaylist?"+params.Encode(), "application/x-www-form-urlencoded;charset=UTF-8", strings.NewReader(fmt.Sprintf(`[[%v,1],["%v"]]`, `""`, id)))
 	payload := html.UnescapeString(browser.Body())
+	w.Logger.Debug("Playlist response:\n%v", payload)
 	json, err := jason.NewObjectFromReader(strings.NewReader(`{"array": ` + payload + `}`))
 	if err != nil {
 		w.Logger.Info(err.Error())
@@ -143,6 +145,7 @@ func (w *WebClient) AddSongToPlaylist(playlistId string, songId string) bool {
 	return true
 }
 func (w *WebClient) GetStreamUrls(id string) (*[]string, error) {
+	w.Logger.Debug("Getting Stream Urls")
 	params := url.Values{}
 	params.Add("u", "0")
 	params.Add("pt", "e")
@@ -169,8 +172,13 @@ func (w *WebClient) GetStreamUrls(id string) (*[]string, error) {
 
 	browser.Open(baseUrl + "play?" + params.Encode())
 	payload := html.UnescapeString(browser.Body())
+	w.Logger.Debug("Payload Response:\n%v", payload)
 	js, _ := jason.NewObjectFromReader(strings.NewReader(payload))
 	urls, _ := js.GetStringArray("urls")
+	if len(urls) < 1 {
+		oneUrl, _ := js.GetString("url")
+		urls = []string{oneUrl}
+	}
 	return &urls, nil
 }
 
@@ -184,12 +192,17 @@ func (w *WebClient) GetStreamAudio(id string) (*[]byte, error) {
 	urls, _ := w.GetStreamUrls(id)
 	b := bytes.NewBuffer(make([]byte, 20000000))
 	for i, v := range *urls {
-		size := getExpectedSize(v)
+		var buffer *bytes.Buffer
+		if strings.Contains(v, "range") {
+			size := getExpectedSize(v)
+			buffer = bytes.NewBuffer(make([]byte, size))
+		} else {
+			buffer = new(bytes.Buffer)
+		}
 		w.Logger.Info("Parsing url %v/%v", i+1, len(*urls))
 		browser.Open(v)
-		d := bytes.NewBuffer(make([]byte, size))
-		browser.Download(d)
-		b.Write(d.Bytes())
+		browser.Download(buffer)
+		b.Write(buffer.Bytes())
 	}
 	audioData := b.Bytes()
 	return &audioData, nil
