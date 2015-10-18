@@ -190,30 +190,47 @@ func (w *WebClient) GetStreamAudio(id string) (*[]byte, error) {
 	browser.SetCookieJar(cookieJar)
 
 	urls, _ := w.GetStreamUrls(id)
-	b := bytes.NewBuffer(make([]byte, 20000000))
+	b := new(bytes.Buffer)
+	highBound := 0
 	for i, v := range *urls {
 		var buffer *bytes.Buffer
-		if strings.Contains(v, "range") {
-			size := getExpectedSize(v)
-			buffer = bytes.NewBuffer(make([]byte, size))
-		} else {
-			buffer = new(bytes.Buffer)
-		}
+		buffer = new(bytes.Buffer)
 		w.Logger.Info("Parsing url %v/%v", i+1, len(*urls))
 		browser.Open(v)
 		browser.Download(buffer)
+		if strings.Contains(v, "range=") {
+			var toBeRemoved int = 0
+			if highBound != 0 {
+				lowBound := getLowBound(v)
+				toBeRemoved = highBound - lowBound
+			}
+			if toBeRemoved > 0 {
+				w.Logger.Info("Before Removing: %v", len(buffer.Bytes()))
+				w.Logger.Info("Removing: %v", toBeRemoved)
+				bt := buffer.Bytes()
+				buffer = bytes.NewBuffer(bt[toBeRemoved-1:])
+				w.Logger.Info("After Removing: %v", len(buffer.Bytes()))
+			}
+			highBound = getHighBound(v)
+		}
 		b.Write(buffer.Bytes())
 	}
 	audioData := b.Bytes()
 	return &audioData, nil
 }
-func getExpectedSize(url string) int {
+
+func getHighBound(url string) int {
 	rangeString := strings.Split(strings.Split(url, "range=")[1], "&")[0]
 	highRangeRaw := strings.Split(rangeString, "-")[1]
-	lowRangeRaw := strings.Split(rangeString, "-")[0]
 	highRange, _ := strconv.Atoi(highRangeRaw)
+	return highRange
+}
+
+func getLowBound(url string) int {
+	rangeString := strings.Split(strings.Split(url, "range=")[1], "&")[0]
+	lowRangeRaw := strings.Split(rangeString, "-")[0]
 	lowRange, _ := strconv.Atoi(lowRangeRaw)
-	return highRange - lowRange + 1
+	return lowRange
 }
 
 func (w *WebClient) ReportIncorrectMatch() error {
